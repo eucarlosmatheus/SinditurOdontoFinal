@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { FiCalendar, FiDollarSign, FiUsers, FiPackage, FiTrendingUp } from 'react-icons/fi'
 import { appointmentsAPI, financialAPI, patientsAPI, inventoryAPI } from '../services/api'
+import socketService from '../services/socket'
 import './Dashboard.css'
 
 export default function Dashboard() {
@@ -14,6 +15,18 @@ export default function Dashboard() {
 
   useEffect(() => {
     loadStats()
+
+    const cleanup1 = socketService.on('new_patient', () => loadStats())
+    const cleanup2 = socketService.on('new_appointment', () => loadStats())
+    const cleanup3 = socketService.on('appointment_cancelled', () => loadStats())
+    const cleanup4 = socketService.on('appointment_updated', () => loadStats())
+
+    return () => {
+      cleanup1()
+      cleanup2()
+      cleanup3()
+      cleanup4()
+    }
   }, [])
 
   const loadStats = async () => {

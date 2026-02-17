@@ -25,7 +25,6 @@ export default function CardScreen() {
         style: 'destructive',
         onPress: async () => {
           await logout();
-          router.replace('/(auth)/login');
         },
       },
     ]);

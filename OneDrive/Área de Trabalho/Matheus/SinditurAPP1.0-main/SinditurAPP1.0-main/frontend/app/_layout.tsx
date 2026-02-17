@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { Stack } from 'expo-router';
+import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { View, StyleSheet, Image, ActivityIndicator } from 'react-native';
-import { AuthProvider } from '../contexts/AuthContext';
+import { AuthProvider, useAuth } from '../contexts/AuthContext';
 
 function SplashScreen({ onFinish }: { onFinish: () => void }) {
   useEffect(() => {
@@ -24,6 +24,34 @@ function SplashScreen({ onFinish }: { onFinish: () => void }) {
   );
 }
 
+function AuthGuard({ children }: { children: React.ReactNode }) {
+  const { user, isLoading } = useAuth();
+  const segments = useSegments();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (isLoading) return;
+
+    const inAuthGroup = segments[0] === '(auth)';
+
+    if (!user && !inAuthGroup) {
+      router.replace('/(auth)/login');
+    } else if (user && inAuthGroup) {
+      router.replace('/(tabs)');
+    }
+  }, [user, isLoading, segments]);
+
+  if (isLoading) {
+    return (
+      <View style={styles.splashContainer}>
+        <ActivityIndicator size="large" color="#1E88E5" />
+      </View>
+    );
+  }
+
+  return <>{children}</>;
+}
+
 export default function RootLayout() {
   const [showSplash, setShowSplash] = useState(true);
 
@@ -34,11 +62,13 @@ export default function RootLayout() {
   return (
     <AuthProvider>
       <StatusBar style="dark" />
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="index" />
-        <Stack.Screen name="(auth)" />
-        <Stack.Screen name="(tabs)" />
-      </Stack>
+      <AuthGuard>
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="index" />
+          <Stack.Screen name="(auth)" />
+          <Stack.Screen name="(tabs)" />
+        </Stack>
+      </AuthGuard>
     </AuthProvider>
   );
 }
