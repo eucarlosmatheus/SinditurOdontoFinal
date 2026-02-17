@@ -55,6 +55,7 @@ venv/
 # Development tools
 chainlit.md
 .chainlit
+.claude/
 .ipynb_checkpoints/
 .ac
 
