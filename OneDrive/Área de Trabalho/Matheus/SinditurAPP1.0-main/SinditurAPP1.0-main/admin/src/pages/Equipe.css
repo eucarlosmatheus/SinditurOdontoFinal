@@ -64,6 +64,11 @@
   color: #1E88E5;
 }
 
+.staff-unit {
+  font-size: 11px;
+  color: #aaa;
+}
+
 .staff-status {
   padding: 4px 12px;
   border-radius: 20px;

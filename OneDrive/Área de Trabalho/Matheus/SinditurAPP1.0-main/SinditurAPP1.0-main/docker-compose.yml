@@ -25,14 +25,5 @@ services:
       - ./admin:/app
       - /app/node_modules
 
-  frontend:
-    build: ./frontend
-    ports:
-      - "8081:8081"
-    environment:
-      - EXPO_PUBLIC_BACKEND_URL=http://localhost:8001
-    depends_on:
-      - backend
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
+  # frontend (Expo/React Native) roda fora do Docker:
+  # $env:EXPO_PUBLIC_BACKEND_URL='http://192.168.15.4:8001'; npx expo start

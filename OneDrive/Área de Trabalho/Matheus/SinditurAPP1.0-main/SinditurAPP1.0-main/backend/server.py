@@ -108,6 +108,7 @@ class StaffCreate(BaseModel):
     password: str
     role: str  # admin, manager, receptionist, doctor
     permissions: List[str] = []
+    unit_id: Optional[str] = None
 
 class StaffUpdate(BaseModel):
     name: Optional[str] = None
@@ -116,6 +117,7 @@ class StaffUpdate(BaseModel):
     role: Optional[str] = None
     permissions: Optional[List[str]] = None
     active: Optional[bool] = None
+    unit_id: Optional[str] = None
 
 class StaffLogin(BaseModel):
     email: str
@@ -129,6 +131,7 @@ class StaffResponse(BaseModel):
     permissions: List[str]
     active: bool
     created_at: datetime
+    unit_id: Optional[str] = None
 
 # Unit Models
 class UnitCreate(BaseModel):
@@ -587,7 +590,7 @@ async def login(credentials: UserLogin):
 @api_router.get("/auth/me")
 async def get_me(current_user: dict = Depends(get_current_user)):
     if current_user.get("user_type") == "staff":
-        return StaffResponse(**{k: current_user[k] for k in ["id", "name", "email", "role", "permissions", "active", "created_at"]})
+        return StaffResponse(**{k: current_user[k] for k in ["id", "name", "email", "role", "permissions", "active", "created_at"]}, unit_id=current_user.get("unit_id"))
     return UserResponse(**{
         "id": current_user["id"],
         "name": current_user["name"],
@@ -617,7 +620,7 @@ async def staff_login(credentials: StaffLogin):
     return {
         "access_token": access_token,
         "token_type": "bearer",
-        "user": StaffResponse(**{k: staff[k] for k in ["id", "name", "email", "role", "permissions", "active", "created_at"]})
+        "user": StaffResponse(**{k: staff[k] for k in ["id", "name", "email", "role", "permissions", "active", "created_at"]}, unit_id=staff.get("unit_id"))
     }
 
 # ==================== STAFF MANAGEMENT ROUTES ====================
@@ -625,7 +628,7 @@ async def staff_login(credentials: StaffLogin):
 @admin_router.get("/staff")
 async def get_all_staff(current_user: dict = Depends(get_staff_user)):
     staff_list = await db.staff.find().to_list(100)
-    return [StaffResponse(**{k: s[k] for k in ["id", "name", "email", "role", "permissions", "active", "created_at"]}) for s in staff_list]
+    return [StaffResponse(**{k: s[k] for k in ["id", "name", "email", "role", "permissions", "active", "created_at"]}, unit_id=s.get("unit_id")) for s in staff_list]
 
 @admin_router.post("/staff")
 async def create_staff(staff_data: StaffCreate, current_user: dict = Depends(get_staff_user)):
@@ -644,12 +647,13 @@ async def create_staff(staff_data: StaffCreate, current_user: dict = Depends(get
         "password": get_password_hash(staff_data.password),
         "role": staff_data.role,
         "permissions": staff_data.permissions,
+        "unit_id": staff_data.unit_id,
         "active": True,
         "created_at": datetime.utcnow()
     }
     await db.staff.insert_one(staff_dict)
     
-    return StaffResponse(**{k: staff_dict[k] for k in ["id", "name", "email", "role", "permissions", "active", "created_at"]})
+    return StaffResponse(**{k: staff_dict[k] for k in ["id", "name", "email", "role", "permissions", "active", "created_at"]}, unit_id=staff_dict.get("unit_id"))
 
 @admin_router.put("/staff/{staff_id}")
 async def update_staff(staff_id: str, staff_data: StaffUpdate, current_user: dict = Depends(get_staff_user)):
@@ -664,7 +668,7 @@ async def update_staff(staff_id: str, staff_data: StaffUpdate, current_user: dic
         await db.staff.update_one({"id": staff_id}, {"$set": update_dict})
     
     staff = await db.staff.find_one({"id": staff_id})
-    return StaffResponse(**{k: staff[k] for k in ["id", "name", "email", "role", "permissions", "active", "created_at"]})
+    return StaffResponse(**{k: staff[k] for k in ["id", "name", "email", "role", "permissions", "active", "created_at"]}, unit_id=staff.get("unit_id"))
 
 @admin_router.delete("/staff/{staff_id}")
 async def delete_staff(staff_id: str, current_user: dict = Depends(get_staff_user)):
