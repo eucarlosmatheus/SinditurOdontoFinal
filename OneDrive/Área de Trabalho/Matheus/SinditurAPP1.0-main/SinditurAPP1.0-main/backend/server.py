@@ -108,6 +108,7 @@ class StaffCreate(BaseModel):
     password: str
     role: str  # admin, manager, receptionist, doctor
     permissions: List[str] = []
+    unit_id: Optional[str] = None
 
 class StaffUpdate(BaseModel):
     name: Optional[str] = None
@@ -116,6 +117,7 @@ class StaffUpdate(BaseModel):
     role: Optional[str] = None
     permissions: Optional[List[str]] = None
     active: Optional[bool] = None
+    unit_id: Optional[str] = None
 
 class StaffLogin(BaseModel):
     email: str
@@ -129,6 +131,7 @@ class StaffResponse(BaseModel):
     permissions: List[str]
     active: bool
     created_at: datetime
+    unit_id: Optional[str] = None
 
 # Unit Models
 class UnitCreate(BaseModel):
@@ -272,6 +275,16 @@ class TokenResponse(BaseModel):
     user: dict
 
 # ==================== HELPER FUNCTIONS ====================
+
+def serialize_doc(doc):
+    """Remove MongoDB _id field for JSON serialization"""
+    if doc is None:
+        return None
+    return {k: v for k, v in doc.items() if k != '_id'}
+
+def serialize_docs(docs):
+    """Remove MongoDB _id field from a list of documents"""
+    return [serialize_doc(d) for d in docs]
 
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
@@ -577,7 +590,7 @@ async def login(credentials: UserLogin):
 @api_router.get("/auth/me")
 async def get_me(current_user: dict = Depends(get_current_user)):
     if current_user.get("user_type") == "staff":
-        return StaffResponse(**{k: current_user[k] for k in ["id", "name", "email", "role", "permissions", "active", "created_at"]})
+        return StaffResponse(**{k: current_user[k] for k in ["id", "name", "email", "role", "permissions", "active", "created_at"]}, unit_id=current_user.get("unit_id"))
     return UserResponse(**{
         "id": current_user["id"],
         "name": current_user["name"],
@@ -607,7 +620,7 @@ async def staff_login(credentials: StaffLogin):
     return {
         "access_token": access_token,
         "token_type": "bearer",
-        "user": StaffResponse(**{k: staff[k] for k in ["id", "name", "email", "role", "permissions", "active", "created_at"]})
+        "user": StaffResponse(**{k: staff[k] for k in ["id", "name", "email", "role", "permissions", "active", "created_at"]}, unit_id=staff.get("unit_id"))
     }
 
 # ==================== STAFF MANAGEMENT ROUTES ====================
@@ -615,7 +628,7 @@ async def staff_login(credentials: StaffLogin):
 @admin_router.get("/staff")
 async def get_all_staff(current_user: dict = Depends(get_staff_user)):
     staff_list = await db.staff.find().to_list(100)
-    return [StaffResponse(**{k: s[k] for k in ["id", "name", "email", "role", "permissions", "active", "created_at"]}) for s in staff_list]
+    return [StaffResponse(**{k: s[k] for k in ["id", "name", "email", "role", "permissions", "active", "created_at"]}, unit_id=s.get("unit_id")) for s in staff_list]
 
 @admin_router.post("/staff")
 async def create_staff(staff_data: StaffCreate, current_user: dict = Depends(get_staff_user)):
@@ -634,12 +647,13 @@ async def create_staff(staff_data: StaffCreate, current_user: dict = Depends(get
         "password": get_password_hash(staff_data.password),
         "role": staff_data.role,
         "permissions": staff_data.permissions,
+        "unit_id": staff_data.unit_id,
         "active": True,
         "created_at": datetime.utcnow()
     }
     await db.staff.insert_one(staff_dict)
     
-    return StaffResponse(**{k: staff_dict[k] for k in ["id", "name", "email", "role", "permissions", "active", "created_at"]})
+    return StaffResponse(**{k: staff_dict[k] for k in ["id", "name", "email", "role", "permissions", "active", "created_at"]}, unit_id=staff_dict.get("unit_id"))
 
 @admin_router.put("/staff/{staff_id}")
 async def update_staff(staff_id: str, staff_data: StaffUpdate, current_user: dict = Depends(get_staff_user)):
@@ -654,7 +668,7 @@ async def update_staff(staff_id: str, staff_data: StaffUpdate, current_user: dic
         await db.staff.update_one({"id": staff_id}, {"$set": update_dict})
     
     staff = await db.staff.find_one({"id": staff_id})
-    return StaffResponse(**{k: staff[k] for k in ["id", "name", "email", "role", "permissions", "active", "created_at"]})
+    return StaffResponse(**{k: staff[k] for k in ["id", "name", "email", "role", "permissions", "active", "created_at"]}, unit_id=staff.get("unit_id"))
 
 @admin_router.delete("/staff/{staff_id}")
 async def delete_staff(staff_id: str, current_user: dict = Depends(get_staff_user)):
@@ -1041,7 +1055,7 @@ async def get_daily_financial(date: str, current_user: dict = Depends(get_staff_
 @admin_router.get("/inventory")
 async def get_inventory(current_user: dict = Depends(get_staff_user)):
     items = await db.inventory.find().to_list(500)
-    return items
+    return serialize_docs(items)
 
 @admin_router.post("/inventory")
 async def create_inventory_item(item_data: InventoryItemCreate, current_user: dict = Depends(get_staff_user)):
@@ -1052,7 +1066,7 @@ async def create_inventory_item(item_data: InventoryItemCreate, current_user: di
         "created_at": datetime.utcnow()
     }
     await db.inventory.insert_one(item_dict)
-    
+
     # Log movement
     await db.inventory_movements.insert_one({
         "id": str(uuid.uuid4()),
@@ -1066,8 +1080,8 @@ async def create_inventory_item(item_data: InventoryItemCreate, current_user: di
         "created_at": datetime.utcnow(),
         "created_by": current_user.get("name", "")
     })
-    
-    return item_dict
+
+    return serialize_doc(item_dict)
 
 @admin_router.put("/inventory/{item_id}")
 async def update_inventory_item(item_id: str, item_data: InventoryItemUpdate, current_user: dict = Depends(get_staff_user)):
@@ -1075,7 +1089,7 @@ async def update_inventory_item(item_id: str, item_data: InventoryItemUpdate, cu
     if update_dict:
         await db.inventory.update_one({"id": item_id}, {"$set": update_dict})
     item = await db.inventory.find_one({"id": item_id})
-    return item
+    return serialize_doc(item)
 
 @admin_router.post("/inventory/movement")
 async def add_inventory_movement(movement: InventoryMovement, current_user: dict = Depends(get_staff_user)):
@@ -1113,8 +1127,8 @@ async def add_inventory_movement(movement: InventoryMovement, current_user: dict
         "created_by": current_user.get("name", "")
     }
     await db.inventory_movements.insert_one(movement_dict)
-    
-    return movement_dict
+
+    return serialize_doc(movement_dict)
 
 @admin_router.get("/inventory/movements")
 async def get_inventory_movements(
@@ -1132,7 +1146,7 @@ async def get_inventory_movements(
         query["doctor_id"] = doctor_id
     
     movements = await db.inventory_movements.find(query).sort("created_at", -1).to_list(500)
-    return movements
+    return serialize_docs(movements)
 
 # ==================== PATIENTS ROUTES ====================
 
@@ -1230,8 +1244,7 @@ async def update_patient(patient_id: str, data: PatientUpdate, current_user: dic
 @admin_router.get("/document-templates")
 async def get_document_templates(current_user: dict = Depends(get_staff_user)):
     templates = await db.document_templates.find().to_list(10)
-    # Remove MongoDB _id field for JSON serialization
-    return [{k: v for k, v in t.items() if k != '_id'} for t in templates]
+    return serialize_docs(templates)
 
 @admin_router.put("/document-templates/{template_type}")
 async def update_document_template(template_type: str, data: DocumentTemplateUpdate, current_user: dict = Depends(get_staff_user)):
@@ -1240,7 +1253,7 @@ async def update_document_template(template_type: str, data: DocumentTemplateUpd
         {"$set": {"content": data.content, "updated_at": datetime.utcnow()}}
     )
     template = await db.document_templates.find_one({"type": template_type})
-    return template
+    return serialize_doc(template)
 
 @admin_router.post("/documents/generate")
 async def generate_document(data: DocumentGenerate, current_user: dict = Depends(get_staff_user)):

@@ -55,6 +55,7 @@ venv/
 # Development tools
 chainlit.md
 .chainlit
+.claude/
 .ipynb_checkpoints/
 .ac
 
@@ -77,18 +78,9 @@ agenthub/agents/youtube/db
 .cache/
 
 # Mobile development
-android-sdk/ -e 
-# Environment files
-# Note: .env files are managed by deployment system
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
--e 
+android-sdk/
+.metro-cache/
+.expo/
 # Environment files
 *.env
 *.env.*

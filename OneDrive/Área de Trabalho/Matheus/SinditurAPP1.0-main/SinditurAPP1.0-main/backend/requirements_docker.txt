@@ -11,10 +11,10 @@ pydantic-settings
 email-validator
 requests
 aiohttp
-# reportlab
+reportlab
 # weasyprint
 jinja2
-bcrypt
+bcrypt==4.0.1
 dnspython
 google-generativeai
 openai

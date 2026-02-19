@@ -1,26 +1,39 @@
 import React, { useState, useEffect } from 'react'
 import { toast } from 'react-toastify'
 import { FiCheck, FiX, FiCalendar, FiMapPin, FiRefreshCw } from 'react-icons/fi'
-import { appointmentsAPI, unitsAPI } from '../services/api'
+import { appointmentsAPI, unitsAPI, doctorsAPI } from '../services/api'
+import { useAuth } from '../contexts/AuthContext'
 import socketService from '../services/socket'
 import './Agenda.css'
 
 export default function Agenda() {
+  const { user } = useAuth()
   const [appointments, setAppointments] = useState<any[]>([])
   const [units, setUnits] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('todos')
   const [selectedUnit, setSelectedUnit] = useState('')
   const [showAllDates, setShowAllDates] = useState(false)
+  const [myDoctorId, setMyDoctorId] = useState<string | null>(null)
   const todayFormatted = new Date().toLocaleDateString('pt-BR')
+  const isAdmin = user?.role === 'admin' || user?.permissions?.includes('all')
 
   useEffect(() => {
     loadUnits()
+    if (!isAdmin) {
+      doctorsAPI.getAll().then(res => {
+        const match = res.data.find((d: any) =>
+          d.email?.toLowerCase() === user?.email?.toLowerCase() ||
+          d.name?.toLowerCase() === user?.name?.toLowerCase()
+        )
+        if (match) setMyDoctorId(match.id)
+      }).catch(() => {})
+    }
   }, [])
 
   useEffect(() => {
     loadAppointments()
-  }, [filter, selectedUnit, showAllDates])
+  }, [filter, selectedUnit, showAllDates, myDoctorId])
 
   useEffect(() => {
     // Listen for real-time updates
@@ -50,11 +63,14 @@ export default function Agenda() {
   }
 
   const loadAppointments = async () => {
+    // For non-admin users, wait until doctor ID is resolved before loading
+    if (!isAdmin && !myDoctorId) return
     try {
       const params: any = {}
       if (filter !== 'todos') params.status = filter
       if (selectedUnit) params.unit_id = selectedUnit
       if (!showAllDates) params.date = todayFormatted
+      if (!isAdmin && myDoctorId) params.doctor_id = myDoctorId
       const response = await appointmentsAPI.getAll(params)
       setAppointments(response.data)
     } catch (error) {
