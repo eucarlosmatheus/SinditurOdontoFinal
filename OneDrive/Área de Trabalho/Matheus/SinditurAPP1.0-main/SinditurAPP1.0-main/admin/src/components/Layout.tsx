@@ -146,18 +146,27 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     }
   }
 
-  const menuItems = [
+  const hasPermission = (perm?: string) => {
+    if (!perm) return true
+    if (!user) return false
+    if (user.role === 'admin' || user.permissions?.includes('all')) return true
+    return user.permissions?.includes(perm)
+  }
+
+  const allMenuItems = [
     { path: '/', icon: FiHome, label: 'Inicio' },
-    { path: '/agenda', icon: FiCalendar, label: 'Agenda' },
-    { path: '/financeiro', icon: FiDollarSign, label: 'Financeiro' },
-    { path: '/estoque', icon: FiPackage, label: 'Estoque' },
-    { path: '/pacientes', icon: FiUsers, label: 'Pacientes' },
-    { path: '/documentos', icon: FiFileText, label: 'Documentos' },
-    { path: '/equipe', icon: FiUserCheck, label: 'Equipe' },
-    { path: '/clinicas', icon: FiMapPin, label: 'Clinicas' },
-    { path: '/doutores', icon: FiUser, label: 'Doutores' },
-    { path: '/servicos', icon: FiSettings, label: 'Servicos' },
+    { path: '/agenda', icon: FiCalendar, label: 'Agenda', permission: 'agenda' },
+    { path: '/financeiro', icon: FiDollarSign, label: 'Financeiro', permission: 'financeiro' },
+    { path: '/estoque', icon: FiPackage, label: 'Estoque', permission: 'estoque' },
+    { path: '/pacientes', icon: FiUsers, label: 'Pacientes', permission: 'pacientes' },
+    { path: '/documentos', icon: FiFileText, label: 'Documentos', permission: 'documentos' },
+    { path: '/equipe', icon: FiUserCheck, label: 'Equipe', permission: 'equipe' },
+    { path: '/clinicas', icon: FiMapPin, label: 'Clinicas', permission: 'configuracoes' },
+    { path: '/doutores', icon: FiUser, label: 'Doutores', permission: 'configuracoes' },
+    { path: '/servicos', icon: FiSettings, label: 'Servicos', permission: 'configuracoes' },
   ]
+
+  const menuItems = allMenuItems.filter(item => hasPermission(item.permission))
 
   return (
     <div className="layout">

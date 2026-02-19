@@ -149,7 +149,7 @@ export default function Estoque() {
             <div className="empty">Nenhum item cadastrado</div>
           ) : (
             <div className="items-list">
-              {items.map((item) => (
+              {items.filter((item: any) => item.quantity > 0).map((item: any) => (
                 <div key={item.id} className={`item-card ${item.quantity <= item.min_quantity ? 'low-stock' : ''}`}>
                   <div className="item-icon">
                     <FiPackage />
@@ -284,7 +284,7 @@ export default function Estoque() {
                 onChange={(e) => setNewMovement({ ...newMovement, item_id: e.target.value })}
               >
                 <option value="">Selecione um item</option>
-                {items.map((item) => (
+                {items.filter((item: any) => item.quantity > 0).map((item: any) => (
                   <option key={item.id} value={item.id}>
                     {item.name} ({item.quantity} {item.unit}s disponíveis)
                   </option>

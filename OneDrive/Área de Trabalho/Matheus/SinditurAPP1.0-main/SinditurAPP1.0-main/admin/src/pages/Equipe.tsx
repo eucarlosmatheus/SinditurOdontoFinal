@@ -18,7 +18,8 @@ export default function Equipe() {
     email: '',
     password: '',
     role: 'receptionist',
-    permissions: [] as string[]
+    permissions: [] as string[],
+    unit_id: ''
   })
   const [doctorFormData, setDoctorFormData] = useState({
     name: '',
@@ -80,11 +81,12 @@ export default function Equipe() {
         email: staffMember.email,
         password: '',
         role: staffMember.role,
-        permissions: staffMember.permissions
+        permissions: staffMember.permissions,
+        unit_id: staffMember.unit_id || ''
       })
     } else {
       setEditingStaff(null)
-      setFormData({ name: '', email: '', password: '', role: 'receptionist', permissions: [] })
+      setFormData({ name: '', email: '', password: '', role: 'receptionist', permissions: [], unit_id: '' })
     }
     setShowModal(true)
   }
@@ -255,6 +257,7 @@ export default function Equipe() {
                     <span className="staff-name">{member.name}</span>
                     <span className="staff-email">{member.email}</span>
                     <span className="staff-role">{roles[member.role]}</span>
+                    {member.unit_id && <span className="staff-unit">{getUnitName(member.unit_id)}</span>}
                   </div>
                   <span className={`staff-status ${member.active ? 'active' : 'inactive'}`}>
                     {member.active ? 'Ativo' : 'Inativo'}
@@ -348,6 +351,19 @@ export default function Equipe() {
               </select>
             </div>
             
+            <div className="form-group">
+              <label>Clínica</label>
+              <select
+                value={formData.unit_id}
+                onChange={(e) => setFormData({ ...formData, unit_id: e.target.value })}
+              >
+                <option value="">Nenhuma (todas)</option>
+                {units.map((unit) => (
+                  <option key={unit.id} value={unit.id}>{unit.name}</option>
+                ))}
+              </select>
+            </div>
+
             <div className="form-group">
               <label>Permissões</label>
               <div className="permissions-grid">
